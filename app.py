@@ -13,6 +13,8 @@ from flask_login import (
 from oauthlib.oauth2 import WebApplicationClient
 import requests
 
+from user import User
+
 # Configuration
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "528797610245-ko6hnrl4d08qcfnt8k2tsqdju4ria97g.apps.googleusercontent.com")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", None)
@@ -55,8 +57,10 @@ def login():
 @app.route("/login/callback")
 def callback():
     code = request.args.get("code")
-    token_endpoint = get_openid_configuration()["token_endpoint"]
+    openid_configuration = get_openid_configuration()
+    token_endpoint = openid_configuration["token_endpoint"]
 
+    # get access token using code
     token_url, headers, body = client.prepare_token_request(
         token_endpoint,
         authorization_response=request.url,
@@ -70,6 +74,23 @@ def callback():
         auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
     )
     client.parse_request_body_response(json.dumps(token_response.json()))
+    
+    # Get user info
+    userinfo_endpoint = openid_configuration["userinfo_endpoint"]
+    uri, headers, body = client.add_token(userinfo_endpoint)
+    userinfo_response = requests.get(uri, headers=headers, data=body)
+    userinfo_json = userinfo_response.json()
+    unique_id = userinfo_json["sub"]
+    users_email = userinfo_json["email"]
+    picture = userinfo_json["picture"]
+    users_name = userinfo_json["given_name"]
+
+    user = User(
+        id_=unique_id, name=users_name, email=users_email, profile_pic=picture
+    )
+    login_user(user)
+    return redirect(url_for("index"))
+
 
 @app.route("/logout")
 @login_required
