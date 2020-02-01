@@ -18,6 +18,8 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   data() {
     return {
@@ -25,10 +27,8 @@ export default {
     }
   },
   methods: {
-    onSignIn() {
-      this.$gAuth.signIn().then(user => {
-        this.user = user.getBasicProfile();
-      });
+    async onSignIn() {
+      window.location.replace("api/login")
     }
   }
 }
